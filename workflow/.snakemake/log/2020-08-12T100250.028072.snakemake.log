@@ -1,0 +1,10 @@
+FileNotFoundError in line 16 of /g/steinmetz/linder/data/mouse/collaborations/samie_METTL3_KO/actinomycin_mESC/snakemake_rnaseq/workflow/Snakefile:
+[Errno 2] File samples.tsv does not exist: 'samples.tsv'
+  File "/g/steinmetz/linder/data/mouse/collaborations/samie_METTL3_KO/actinomycin_mESC/snakemake_rnaseq/workflow/Snakefile", line 16, in <module>
+  File "/home/linder/bin/miniconda3/lib/python3.7/site-packages/pandas/io/parsers.py", line 676, in parser_f
+  File "/home/linder/bin/miniconda3/lib/python3.7/site-packages/pandas/io/parsers.py", line 448, in _read
+  File "/home/linder/bin/miniconda3/lib/python3.7/site-packages/pandas/io/parsers.py", line 880, in __init__
+  File "/home/linder/bin/miniconda3/lib/python3.7/site-packages/pandas/io/parsers.py", line 1114, in _make_engine
+  File "/home/linder/bin/miniconda3/lib/python3.7/site-packages/pandas/io/parsers.py", line 1891, in __init__
+  File "pandas/_libs/parsers.pyx", line 374, in pandas._libs.parsers.TextReader.__cinit__
+  File "pandas/_libs/parsers.pyx", line 674, in pandas._libs.parsers.TextReader._setup_parser_source

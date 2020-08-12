@@ -1,0 +1,166 @@
+import pandas as pd
+from snakemake.utils import validate, min_version
+
+## Although this Snakefile is in the "workflow" subdirectory, it is run from the root directory cloned from git. All paths are relative to this root folder.
+
+###
+### setup
+###
+
+# Load configuration files
+try:
+    configfile_path = config['configfile_path']
+except:
+    configfile_path = "workflow/config/config.yaml"
+configfile: configfile_path
+
+# Include the gtf biotypes yaml
+configfile: config['PARAMS']['biotypes']['gtf_biotypes']
+
+# sample table
+samples = pd.read_table(config['INPUT']['files']['sample_table'])
+
+# Define a few variables to make them easier to reference (and override)
+fastq_dir = config['INPUT']['files']['fastq_directory']
+srrs = samples['run']
+temp_dir = config['LOCAL']['temp_directory']
+genome_dir = config['LOCAL']['genome_directory']
+species = config['PARAMS']['species']
+build = config['META']['genome'][species]['build']
+release = config['META']['genome'][species]['release']
+
+###
+### rules
+###
+
+rule all:
+    input:
+        expand(
+            [
+            #qc
+            'logs/fastqc/{sample}_fastqc.html',
+            'logs/multiqc.html',
+            #mapping
+            #'results/star/{species}_{build}_{release}/{sample}.Aligned.sortedByCoord.out.bam',
+            #'results/star/{species}_{build}_{release}/{sample}.Aligned.sortedByCoord.out.bam.bai',
+            #bedgraph
+            #'results/star/{sample}.bedgraph.gz',
+            ],
+                sample=srrs,
+                species=species,
+                build=build,
+                release=release
+)
+
+rule multiqc:
+    input:
+        #expand('logs/star/{species}_{build}_{release}/{sample}.Log.final.out', sample=srrs, species=species, build=build, release=release),
+        #expand('logs/flexbar/{sample}.log', sample=srrs),
+        expand('logs/fastqc/{sample}_fastqc.html', sample=srrs)
+    output:
+        'logs/multiqc.html'
+    params:
+        inDir='logs',
+        outDir='logs',
+        outFile="multiqc.html"
+    conda: 'envs/sm_multiqc.yaml'
+    shell:
+        '''
+        multiqc \
+        --outdir {params.outDir} \
+        --filename {params.outFile} \
+        --force \
+        {params.inDir}
+        '''
+
+rule fastqc:
+    input:
+        fq1=fastq_dir+'/{sample}.fastq.gz'
+    output:
+        html='logs/fastqc/{sample}_fastqc.html',
+        zip='logs/fastqc/{sample}_fastqc.zip'
+    conda:
+        'envs/sm_preprocess.yaml'
+    params:
+        outDir='logs/fastqc'
+    threads: 6
+    conda:
+        'envs/sm_preprocess.yaml'
+    shell:
+        '''
+        fastqc \
+        --quiet \
+        --outdir  {params.outDir} \
+        --threads {threads} \
+        --adapters workflow/resources/fastqc/adapter_list.txt \
+        --contaminants workflow/resources/fastqc/contaminant_list.txt \
+        {input.fq1}
+        '''
+
+rule flexbar_SE:
+    input:
+        fq1=fastq_dir+'/{sample}.fastq.gz'
+    output:
+        fq1=temp(temp_dir+"/flexbar/{sample}.fastq")
+    params:
+        adapter_file_R1=config['PARAMS']['flexbar']['adapter_file_R1']
+    log:
+        'logs/flexbar/{sample}.log'
+    threads: 3
+    conda:
+        'envs/sm_flexbar.yaml'
+    shell:
+        '''
+        flexbar \
+        --reads  {input.fq1} \
+        --adapters {params.adapter_file_R1}] \
+        --threads {threads} \
+        --min-read-length 12 \
+        --output-reads  {output.fq1} \
+        --output-log {log} \
+        --removal-tags
+        '''
+
+rule align_STAR_SE:
+    input:
+        idx=genome_dir+"/{species}_{build}_{release}/STAR_INDEX/SA",
+        fq1=temp_dir+"/flexbar/{sample}.fastq"
+    output:
+        'results/star/{species}_{build}_{release}/{sample}.Aligned.sortedByCoord.out.bam'
+    log:
+        'logs/star/{species}_{build}_{release}/{sample}.Log.final.out'
+    params:
+        run=lambda wildcards: wildcards.sample,
+        prefix=lambda wildcards: 'results/star/{species}_{build}_{release}/'+wildcards.sample,
+        idx=genome_dir+"/{species}_{build}_{release}/STAR_INDEX"
+    threads: 12
+    conda:
+        'envs/sm_preprocess.yaml'
+    shell:
+        '''
+        STAR \
+        --runThreadN {threads} \
+        --genomeDir {params.idx} \
+        --readFilesIn {input.fq1} \
+        --outSAMattributes MD NH \
+        --outFileNamePrefix {params.prefix}. \
+        --outSAMtype BAM SortedByCoordinate &&
+        mv {params.prefix}.Log.final.out {log}
+        '''
+
+rule index_bam:
+    input:
+        'results/star/{species}_{build}_{release}/aln/{sample}.Aligned.sortedByCoord.out.bam'
+    output:
+        'results/star/{species}_{build}_{release}/aln/{sample}.Aligned.sortedByCoord.out.bam.bai'
+    conda:
+        'envs/sm_preprocess.yaml'
+    shell:
+        '''
+        samtools index {input}
+        '''
+
+
+
+include: "rules/get_genomes.smk"
+include: "rules/generate_meta.smk"

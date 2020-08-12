@@ -1,0 +1,27 @@
+CONTACT:
+  email: linder@embl.de
+  person: Bastian Linder
+INPUT:
+    files:
+        sample_table: samples.tsv
+        fastq_directory: fastq
+PARAMS:
+    species: mus_musculus
+    layout: SINGLE
+    flexbar:
+        adapter_file_R1: workflow/resources/flexbar/TruSeq_universal_read_1.fasta
+    biotypes:
+        gtf_biotypes: workflow/config/gtf_biotypes.yaml
+LOCAL:
+    temp_directory: /tmpdata/linder
+    genome_directory: /g/steinmetz/linder/genomes
+    memory: 4g
+META:
+    genome:
+        mus_musculus:
+            species: mus_musculus
+            build: GRCm38
+            release: M25
+            genome_download_path: "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/GRCm38.p6.genome.fa.gz"
+            annotation_download_path: "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
+    
